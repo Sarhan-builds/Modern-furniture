@@ -36,9 +36,15 @@ type CartItem = Product & {
 type ViewState = 
   | { name: 'home' } 
   | { name: 'checkout' } 
-  | { name: 'products', category?: string } 
+  | { name: 'products', category?: string, collectionId?: string } 
   | { name: 'product', slug: string }
   | { name: 'admin' };
+
+type Collection = {
+  id: string;
+  name: string;
+  product_ids?: string[];
+};
 
 // --- HELPERS ---
 const getImageUrl = (title: string, width = 800, height = 600) => {
@@ -226,13 +232,22 @@ function HomeView({ navigate, addToCart, products, categories }: { navigate: (v:
   );
 }
 
-function ProductsView({ category, navigate, addToCart, products }: { category?: string, navigate: (v: ViewState) => void, addToCart: (p: Product, q?: number, s?: any) => void, products: Product[] }) {
-  const displayedProducts = category 
-    ? products.filter(p => p.category.toLowerCase() === category.toLowerCase()) 
-    : products;
+function ProductsView({ category, collectionId, collections, navigate, addToCart, products }: { category?: string, collectionId?: string, collections: Collection[], navigate: (v: ViewState) => void, addToCart: (p: Product, q?: number, s?: any) => void, products: Product[] }) {
+  const selectedCollection = collectionId ? collections.find(col => col.id === collectionId) : undefined;
+
+  const displayedProducts = products.filter((p) => {
+    const matchesCategory = category ? p.category.toLowerCase() === category.toLowerCase() : true;
+    const matchesCollection = selectedCollection?.product_ids?.length
+      ? selectedCollection.product_ids.includes(p.id)
+      : !collectionId;
+
+    return matchesCategory && matchesCollection;
+  });
   
-  const title = category ? `${category}` : 'All Products';
-  const description = category ? `Browse our collection of ${category}.` : 'Browse our complete collection of premium furniture.';
+  const title = selectedCollection?.name || (category ? `${category}` : 'All Products');
+  const description = selectedCollection
+    ? `Browse products in ${selectedCollection.name}.`
+    : category ? `Browse our collection of ${category}.` : 'Browse our complete collection of premium furniture.';
   
   useSEO(title, description);
 
@@ -868,14 +883,17 @@ export default function App() {
   const [view, setView] = useState<ViewState>({ name: 'home' });
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
     try {
       const { data: categoriesData } = await supabase.from('categories').select('*');
       const { data: productsData } = await supabase.from('products').select('*');
+      const { data: collectionsData } = await supabase.from('collections').select('*');
       
       if (categoriesData) setCategories(categoriesData);
+      if (collectionsData) setCollections(collectionsData);
 
       if (productsData && categoriesData) {
         const mappedProducts: Product[] = productsData.map(p => {
@@ -888,6 +906,7 @@ export default function App() {
             category: cat ? cat.name : 'Uncategorized',
             custom: p.is_customizable,
             description: p.description || '',
+            image_urls: p.image_urls || [],
             features: ['Premium Quality', 'Nationwide Delivery'], // Default features
             variants: { colors: ['Standard'], sizes: ['Standard'] } // Default variants
           };
@@ -945,7 +964,7 @@ export default function App() {
                   {cart.map((item) => (
                     <div key={item.cartId} className="flex items-center gap-4">
                       <div className="w-20 h-20 border border-gray-200 overflow-hidden relative">
-                        <img src={getImageUrl(item.name, 100, 100)} alt={item.name} className="w-full h-full object-cover absolute inset-0" referrerPolicy="no-referrer" />
+                        <img src={item.image_urls?.[0] || getImageUrl(item.name, 100, 100)} alt={item.name} className="w-full h-full object-cover absolute inset-0" referrerPolicy="no-referrer" />
                       </div>
                       <div className="flex-1">
                         <h4 className="text-sm font-medium text-gray-900">{item.name}</h4>
@@ -1003,9 +1022,9 @@ export default function App() {
                     <button onClick={() => navigate({ name: 'products' })} className="px-6 py-3 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 uppercase tracking-wider text-left w-full">
                       All Products
                     </button>
-                    {categories.filter(c => !c.parent_id).map((cat) => (
-                      <button key={cat.id} onClick={() => navigate({ name: 'products', category: cat.name })} className="px-6 py-3 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 uppercase tracking-wider text-left w-full">
-                        {cat.name}
+                    {collections.map((collection) => (
+                      <button key={collection.id} onClick={() => navigate({ name: 'products', collectionId: collection.id })} className="px-6 py-3 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 uppercase tracking-wider text-left w-full">
+                        {collection.name}
                       </button>
                     ))}
                   </div>
@@ -1020,62 +1039,29 @@ export default function App() {
                 <div className="absolute top-20 left-0 w-full bg-white border-b border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
                   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
                     <div className="grid grid-cols-4 gap-8">
-                      {/* Living Room */}
-                      <div>
-                        <div onClick={() => navigate({ name: 'products', category: 'Living Room' })} className="relative h-40 mb-6 bg-gray-100 overflow-hidden group/cat cursor-pointer">
-                          <img src={getImageUrl('living room furniture', 400, 300)} alt="Living Room" className="w-full h-full object-cover transition-transform duration-700 group-hover/cat:scale-105" referrerPolicy="no-referrer" />
+                      {categories.filter(c => !c.parent_id).slice(0, 4).map((mainCategory) => {
+                        const subCategories = categories.filter(c => c.parent_id === mainCategory.id);
+                        const matchedCategoryNames = [mainCategory.name, ...subCategories.map((s: any) => s.name)].map((name) => name.toLowerCase());
+                        const categoryProducts = products.filter(product => matchedCategoryNames.includes(product.category.toLowerCase())).slice(0, 5);
+
+                        return (
+                      <div key={mainCategory.id}>
+                        <div onClick={() => navigate({ name: 'products', category: mainCategory.name })} className="relative h-40 mb-6 bg-gray-100 overflow-hidden group/cat cursor-pointer">
+                          <img src={getImageUrl(mainCategory.name, 400, 300)} alt={mainCategory.name} className="w-full h-full object-cover transition-transform duration-700 group-hover/cat:scale-105" referrerPolicy="no-referrer" />
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                            <h3 className="text-white font-serif text-2xl tracking-widest uppercase">Living Room</h3>
+                            <h3 className="text-white font-serif text-2xl tracking-widest uppercase">{mainCategory.name}</h3>
                           </div>
                         </div>
                         <ul className="space-y-3">
-                          {['Sofas & Sectionals', 'Coffee Tables', 'TV Consoles', 'Lounge Chairs', 'Side Tables'].map(sub => (
-                            <li key={sub}><button onClick={() => navigate({ name: 'products', category: sub })} className="text-sm text-gray-500 hover:text-gray-900 hover:underline underline-offset-4">{sub}</button></li>
+                          {subCategories.map((sub: any) => (
+                            <li key={sub.id}><button onClick={() => navigate({ name: 'products', category: sub.name })} className="text-sm text-gray-500 hover:text-gray-900 hover:underline underline-offset-4">{sub.name}</button></li>
+                          ))}
+                          {categoryProducts.map((product) => (
+                            <li key={product.id}><button onClick={() => navigate({ name: 'product', slug: product.slug })} className="text-sm text-gray-900 hover:underline underline-offset-4">{product.name}</button></li>
                           ))}
                         </ul>
                       </div>
-                      {/* Bedroom */}
-                      <div>
-                        <div onClick={() => navigate({ name: 'products', category: 'Bedroom' })} className="relative h-40 mb-6 bg-gray-100 overflow-hidden group/cat cursor-pointer">
-                          <img src={getImageUrl('bedroom furniture', 400, 300)} alt="Bedroom" className="w-full h-full object-cover transition-transform duration-700 group-hover/cat:scale-105" referrerPolicy="no-referrer" />
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                            <h3 className="text-white font-serif text-2xl tracking-widest uppercase">Bedroom</h3>
-                          </div>
-                        </div>
-                        <ul className="space-y-3">
-                          {['Beds', 'Wardrobes', 'Nightstands', 'Dressers', 'Mattresses'].map(sub => (
-                            <li key={sub}><button onClick={() => navigate({ name: 'products', category: sub })} className="text-sm text-gray-500 hover:text-gray-900 hover:underline underline-offset-4">{sub}</button></li>
-                          ))}
-                        </ul>
-                      </div>
-                      {/* Dining */}
-                      <div>
-                        <div onClick={() => navigate({ name: 'products', category: 'Dining' })} className="relative h-40 mb-6 bg-gray-100 overflow-hidden group/cat cursor-pointer">
-                          <img src={getImageUrl('dining room furniture', 400, 300)} alt="Dining" className="w-full h-full object-cover transition-transform duration-700 group-hover/cat:scale-105" referrerPolicy="no-referrer" />
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                            <h3 className="text-white font-serif text-2xl tracking-widest uppercase">Dining</h3>
-                          </div>
-                        </div>
-                        <ul className="space-y-3">
-                          {['Dining Tables', 'Dining Chairs', 'Sideboards', 'Bar Stools', 'Dining Sets'].map(sub => (
-                            <li key={sub}><button onClick={() => navigate({ name: 'products', category: sub })} className="text-sm text-gray-500 hover:text-gray-900 hover:underline underline-offset-4">{sub}</button></li>
-                          ))}
-                        </ul>
-                      </div>
-                      {/* Office */}
-                      <div>
-                        <div onClick={() => navigate({ name: 'products', category: 'Office' })} className="relative h-40 mb-6 bg-gray-100 overflow-hidden group/cat cursor-pointer">
-                          <img src={getImageUrl('home office furniture', 400, 300)} alt="Office" className="w-full h-full object-cover transition-transform duration-700 group-hover/cat:scale-105" referrerPolicy="no-referrer" />
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                            <h3 className="text-white font-serif text-2xl tracking-widest uppercase">Office</h3>
-                          </div>
-                        </div>
-                        <ul className="space-y-3">
-                          {['Office Desks', 'Ergonomic Chairs', 'Bookshelves', 'Filing Cabinets', 'Conference Tables'].map(sub => (
-                            <li key={sub}><button onClick={() => navigate({ name: 'products', category: sub })} className="text-sm text-gray-500 hover:text-gray-900 hover:underline underline-offset-4">{sub}</button></li>
-                          ))}
-                        </ul>
-                      </div>
+                      )})}
                     </div>
                   </div>
                 </div>
@@ -1139,7 +1125,7 @@ export default function App() {
         ) : (
           <>
             {view.name === 'home' && <HomeView navigate={navigate} addToCart={addToCart} products={products} categories={categories} />}
-            {view.name === 'products' && <ProductsView category={view.category} navigate={navigate} addToCart={addToCart} products={products} />}
+            {view.name === 'products' && <ProductsView category={view.category} collectionId={view.collectionId} collections={collections} navigate={navigate} addToCart={addToCart} products={products} />}
             {view.name === 'product' && <ProductDetailsView slug={view.slug} navigate={navigate} addToCart={addToCart} products={products} />}
             {view.name === 'checkout' && <CheckoutView cart={cart} cartTotal={cartTotal} />}
             {view.name === 'admin' && <AdminView onDataChange={loadData} />}
