@@ -48,9 +48,11 @@ const getImageUrl = (title: string, width = 800, height = 600) => {
 
 const formatPrice = (price: number) => `Rs. ${price.toLocaleString()}`;
 
-const useSEO = (title: string, description: string) => {
+const useSEO = (title: string, description: string, jsonLd?: object) => {
+  const jsonLdString = jsonLd ? JSON.stringify(jsonLd) : undefined;
   useEffect(() => {
     document.title = `${title} | Lumina Furniture`;
+
     let meta = document.querySelector('meta[name="description"]');
     if (!meta) {
       meta = document.createElement('meta');
@@ -58,7 +60,33 @@ const useSEO = (title: string, description: string) => {
       document.head.appendChild(meta);
     }
     meta.setAttribute('content', description);
-  }, [title, description]);
+
+    // Update og:title and og:description dynamically
+    let ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) ogTitle.setAttribute('content', `${title} | Lumina Furniture`);
+    let ogDesc = document.querySelector('meta[property="og:description"]');
+    if (ogDesc) ogDesc.setAttribute('content', description);
+
+    // Inject/update page-level JSON-LD
+    const scriptId = 'seo-page-jsonld';
+    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+    if (jsonLdString) {
+      if (!script) {
+        script = document.createElement('script');
+        script.id = scriptId;
+        script.type = 'application/ld+json';
+        document.head.appendChild(script);
+      }
+      script.textContent = jsonLdString;
+    } else if (script) {
+      script.remove();
+    }
+
+    return () => {
+      const s = document.getElementById(scriptId);
+      if (s) s.remove();
+    };
+  }, [title, description, jsonLdString]);
 };
 
 // --- MAIN APP COMPONENT ---
@@ -292,7 +320,29 @@ function ProductDetailsView({ slug, navigate, addToCart, products }: { slug: str
   const product = products.find(p => p.slug === slug);
   if (!product) return <div className="py-24 text-center text-xl font-serif">Product not found</div>;
 
-  useSEO(product.name, product.description);
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": product.name,
+    "description": product.description,
+    "brand": {
+      "@type": "Brand",
+      "name": "Lumina Furniture"
+    },
+    "category": product.category,
+    "offers": {
+      "@type": "Offer",
+      "price": product.price,
+      "priceCurrency": "PKR",
+      "availability": "https://schema.org/InStock",
+      "seller": {
+        "@type": "Organization",
+        "name": "Lumina Furniture"
+      }
+    }
+  };
+
+  useSEO(product.name, product.description, productSchema);
 
   const [color, setColor] = useState(product.variants?.colors?.[0] || '');
   const [size, setSize] = useState(product.variants?.sizes?.[0] || '');

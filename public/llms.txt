@@ -1,0 +1,35 @@
+# Lumina Furniture
+
+> Pakistan's largest premium furniture e-commerce store offering factory-direct pricing, custom-made furniture, and nationwide delivery across all major cities.
+
+## Products
+
+- [All Furniture](https://luminafurniture.pk/?view=products): Browse the complete collection of premium bedroom, living room, dining room, and office furniture. Factory direct pricing with no middlemen.
+- [Bedroom Furniture](https://luminafurniture.pk/?view=products&category=bedroom): Premium beds, wardrobes, dressers, and bedside tables. Custom sizes available.
+- [Living Room Furniture](https://luminafurniture.pk/?view=products&category=living-room): Sofas, coffee tables, TV units, and accent chairs. Handcrafted with premium materials.
+- [Dining Room Furniture](https://luminafurniture.pk/?view=products&category=dining): Dining tables and chair sets for 4 to 12 persons. Custom dimensions available.
+- [Office Furniture](https://luminafurniture.pk/?view=products&category=office): Ergonomic desks, executive chairs, and storage solutions for home and corporate offices.
+
+## Services
+
+- [Custom Furniture](https://luminafurniture.pk/): Bespoke furniture manufactured to your exact dimensions, material choice, and finish. Request a quote online.
+- [Nationwide Delivery](https://luminafurniture.pk/): Safe and timely delivery to Karachi, Lahore, Islamabad, Rawalpindi, Faisalabad, Multan, and all major cities in Pakistan.
+- [White Glove Assembly](https://luminafurniture.pk/): Professional furniture assembly service available in select cities.
+
+## About
+
+- [About Lumina Furniture](https://luminafurniture.pk/): Lumina is Pakistan's premier furniture brand combining factory-direct pricing with premium craftsmanship. Materials are sourced globally and crafted locally.
+
+## Key Facts
+
+- Business Type: E-commerce furniture store (FurnitureStore)
+- Country: Pakistan
+- Currency: Pakistani Rupee (PKR / Rs.)
+- Specialties: Bedroom furniture, living room furniture, dining furniture, office furniture, custom furniture
+- Key features: Factory direct pricing, custom sizes, nationwide delivery, white glove assembly
+- Return policy: 14-day returns on standard items; custom orders are non-refundable
+- Standard delivery: 5–7 business days
+
+## Contact
+
+- Website: https://luminafurniture.pk
